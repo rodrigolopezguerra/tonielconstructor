@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Lego Builder 2.0 - Guardar y Cargar</title>
+    <title>Lego Builder 3.0 - Configurable</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         
         /* UI Overlay */
         #ui-container {
@@ -16,9 +16,9 @@
             display: flex;
             gap: 10px;
             background: rgba(255, 255, 255, 0.9);
-            padding: 10px;
-            border-radius: 15px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 12px;
+            border-radius: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
             z-index: 10;
         }
 
@@ -31,7 +31,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
             transition: transform 0.1s;
         }
-        .color-btn.selected { border: 3px solid #333; transform: scale(1.1); }
+        .color-btn.selected { border: 3px solid #333; transform: scale(1.15); }
 
         #tools {
             position: absolute;
@@ -50,33 +50,46 @@
             border-radius: 12px;
             font-size: 24px;
             cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            transition: background 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s;
         }
         .tool-btn:active { transform: scale(0.95); }
         .tool-btn.active { background-color: #ffcccc; color: red; border: 2px solid red; }
 
-        /* Menú de Carga (Modal) */
-        #load-modal {
+        /* Estilos para Modales (Carga y Configuración) */
+        .modal {
             display: none;
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            padding: 20px;
+            padding: 25px;
             border-radius: 15px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             z-index: 20;
-            width: 80%;
-            max-width: 300px;
-            max-height: 70%;
+            width: 85%;
+            max-width: 320px;
+            max-height: 75%;
             overflow-y: auto;
             text-align: center;
         }
         
-        #load-modal h2 { margin-top: 0; color: #333; }
+        .modal h2 { margin-top: 0; color: #333; font-size: 1.5rem; }
+        .modal label { display: block; margin: 15px 0 5px; font-weight: bold; text-align: left; }
         
+        /* Estilos específicos de Configuración */
+        select {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+            background: #f9f9f9;
+        }
+
+        /* Estilos lista guardado */
         .saved-item {
             display: flex;
             justify-content: space-between;
@@ -87,45 +100,33 @@
             border-radius: 8px;
         }
         
-        .load-btn-action {
-            background: #2196F3;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            flex-grow: 1;
-            margin-right: 5px;
-            font-weight: bold;
+        .btn-primary {
+            background: #2196F3; color: white; border: none;
+            padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px;
         }
         
-        .delete-btn-action {
-            background: #ff5252;
-            color: white;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+        .btn-action { padding: 8px 12px; border-radius: 5px; border: none; cursor: pointer; color: white; }
+        .btn-load { background: #4CAF50; flex-grow: 1; margin-right: 5px; }
+        .btn-delete { background: #ff5252; }
 
         .close-modal-btn {
             margin-top: 15px;
-            background: #ddd;
-            border: none;
-            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid #ccc;
+            padding: 8px 20px;
             border-radius: 20px;
-            font-weight: bold;
             cursor: pointer;
+            color: #666;
         }
 
         #overlay-bg {
             display: none;
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(2px);
             z-index: 15;
         }
-
     </style>
     <script type="importmap">
         {
@@ -140,14 +141,28 @@
 
     <div id="overlay-bg"></div>
 
-    <div id="load-modal">
+    <div id="load-modal" class="modal">
         <h2>Mis Construcciones</h2>
-        <div id="saved-list">
-            </div>
-        <button class="close-modal-btn" onclick="closeModal()">Cerrar</button>
+        <div id="saved-list"></div>
+        <button class="close-modal-btn" onclick="closeAllModals()">Cerrar</button>
+    </div>
+
+    <div id="settings-modal" class="modal">
+        <h2>⚙️ Configuración</h2>
+        
+        <label for="map-size">Tamaño del Mapa:</label>
+        <select id="map-size">
+            <option value="1000">Normal (20x20)</option>
+            <option value="2000">Grande (40x40)</option>
+            <option value="3000">Enorme (60x60)</option>
+        </select>
+
+        <button class="btn-primary" onclick="saveSettings()">Guardar y Aplicar</button>
+        <button class="close-modal-btn" onclick="closeAllModals()">Cancelar</button>
     </div>
 
     <div id="tools">
+        <button id="btn-settings" class="tool-btn" title="Configuración">⚙️</button>
         <button id="btn-save" class="tool-btn" title="Guardar">💾</button>
         <button id="btn-load" class="tool-btn" title="Cargar">📂</button>
         <button id="btn-mode" class="tool-btn" title="Borrar Bloques">🗑️</button>
@@ -159,7 +174,8 @@
         <div class="color-btn" style="background-color: #1976d2;" onclick="setColor(this, 0x1976d2)"></div>
         <div class="color-btn" style="background-color: #fbc02d;" onclick="setColor(this, 0xfbc02d)"></div>
         <div class="color-btn" style="background-color: #388e3c;" onclick="setColor(this, 0x388e3c)"></div>
-        <div class="color-btn" style="background-color: #9c27b0;" onclick="setColor(this, 0x9c27b0)"></div> <div class="color-btn" style="background-color: #fff;" onclick="setColor(this, 0xffffff)"></div>
+        <div class="color-btn" style="background-color: #9c27b0;" onclick="setColor(this, 0x9c27b0)"></div>
+        <div class="color-btn" style="background-color: #fff;" onclick="setColor(this, 0xffffff)"></div>
         <div class="color-btn" style="background-color: #212121;" onclick="setColor(this, 0x212121)"></div>
     </div>
 
@@ -168,20 +184,30 @@
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
         let camera, scene, renderer;
-        let plane;
+        let plane, gridHelper;
         let pointer, raycaster;
         let isShiftDown = false; 
         
         let rollOverMesh, rollOverMaterial;
-        let cubeGeo, cubeMaterial;
-        const objects = []; 
+        let cubeGeo;
+        
+        // objects[0] siempre será el plano del suelo
+        let objects = []; 
         
         let currentColor = 0xd32f2f;
+        
+        // Configuración por defecto
+        let appSettings = {
+            mapSize: 1000
+        };
 
         init();
         render();
 
         function init() {
+            // Cargar configuración guardada
+            loadSettingsFromStorage();
+
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf0f0f0);
 
@@ -189,13 +215,14 @@
             camera.position.set(500, 800, 1300);
             camera.lookAt(0, 0, 0);
 
+            // Luces
             const ambientLight = new THREE.AmbientLight(0x606060, 3);
             scene.add(ambientLight);
-
             const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
             directionalLight.position.set(1, 0.75, 0.5).normalize();
             scene.add(directionalLight);
 
+            // Cursor Fantasma
             const rollOverGeo = new THREE.BoxGeometry(50, 50, 50);
             rollOverMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.5, transparent: true });
             rollOverMesh = new THREE.Mesh(rollOverGeo, rollOverMaterial);
@@ -203,14 +230,8 @@
 
             cubeGeo = new THREE.BoxGeometry(50, 50, 50);
             
-            const gridHelper = new THREE.GridHelper(1000, 20);
-            scene.add(gridHelper);
-
-            const geometry = new THREE.PlaneGeometry(1000, 1000);
-            geometry.rotateX(-Math.PI / 2);
-            plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
-            scene.add(plane);
-            objects.push(plane);
+            // CREAR EL ENTORNO (Grid y Suelo) basado en configuración
+            updateEnvironment(appSettings.mapSize);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setPixelRatio(window.devicePixelRatio);
@@ -223,6 +244,7 @@
             const controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.05; // Evitar que la cámara pase bajo el suelo
 
             document.addEventListener('pointermove', onPointerMove);
             document.addEventListener('pointerdown', onPointerDown);
@@ -231,8 +253,59 @@
             setupUI();
         }
 
+        // --- GESTIÓN DEL ENTORNO Y CONFIGURACIÓN ---
+
+        function updateEnvironment(size) {
+            // Limpiar grid y plano anteriores si existen
+            if (gridHelper) scene.remove(gridHelper);
+            if (plane) scene.remove(plane);
+            
+            // Si el plano estaba en objects[0], quitarlo
+            if (objects.length > 0 && objects[0].isPlane) {
+                objects.shift(); 
+            }
+
+            // Crear nuevo Grid
+            // Size = tamaño total, 50 = tamaño de cada celda
+            gridHelper = new THREE.GridHelper(size, size / 50);
+            scene.add(gridHelper);
+
+            // Crear nuevo Plano de Raycasting (invisible)
+            const geometry = new THREE.PlaneGeometry(size, size);
+            geometry.rotateX(-Math.PI / 2);
+            plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
+            plane.isPlane = true; // Marca para identificarlo
+            scene.add(plane);
+            
+            // Insertar el plano al principio del array de objetos
+            objects.unshift(plane);
+        }
+
+        function loadSettingsFromStorage() {
+            const saved = localStorage.getItem('legoSettings');
+            if (saved) {
+                appSettings = JSON.parse(saved);
+                // Actualizar selector UI
+                document.getElementById('map-size').value = appSettings.mapSize;
+            }
+        }
+
+        window.saveSettings = function() {
+            const sizeSelect = document.getElementById('map-size');
+            const newSize = parseInt(sizeSelect.value);
+
+            appSettings.mapSize = newSize;
+            localStorage.setItem('legoSettings', JSON.stringify(appSettings));
+            
+            updateEnvironment(newSize);
+            closeAllModals();
+            render();
+            alert("¡Configuración guardada y aplicada!");
+        }
+
+        // --- UI SETUP ---
+
         function setupUI() {
-            // Botón Borrar/Construir
             const btnMode = document.getElementById('btn-mode');
             btnMode.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -246,132 +319,113 @@
                 }
             });
 
-            // Botón Limpiar
             document.getElementById('btn-clear').addEventListener('click', (e) => {
                 e.stopPropagation();
-                if(confirm("¿Estás seguro de que quieres borrar todo el escenario?")) {
-                    clearScene();
-                }
+                if(confirm("¿Borrar todo el escenario?")) clearScene();
             });
 
-            // Botón Guardar
             document.getElementById('btn-save').addEventListener('click', (e) => {
                 e.stopPropagation();
                 saveScene();
             });
 
-            // Botón Cargar
             document.getElementById('btn-load').addEventListener('click', (e) => {
                 e.stopPropagation();
-                openLoadMenu();
+                openModal('load-modal');
+                loadSavedList();
+            });
+
+            // Nuevo botón Settings
+            document.getElementById('btn-settings').addEventListener('click', (e) => {
+                e.stopPropagation();
+                openModal('settings-modal');
             });
         }
 
-        // --- FUNCIONES DE GUARDADO Y CARGA ---
+        // --- MODALES ---
+        
+        window.openModal = function(id) {
+            document.getElementById('overlay-bg').style.display = 'block';
+            document.getElementById(id).style.display = 'block';
+        }
+
+        window.closeAllModals = function() {
+            document.getElementById('overlay-bg').style.display = 'none';
+            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+        }
+
+        // --- GUARDADO / CARGA ---
 
         function saveScene() {
             if (objects.length <= 1) {
-                alert("No hay nada que guardar. ¡Construye algo primero!");
+                alert("¡Construye algo primero!");
                 return;
             }
-
-            // Preguntar nombre
             let saveName = prompt("Nombre de tu construcción:", "Mi Lego 1");
-            if (saveName === null || saveName.trim() === "") return;
+            if (!saveName) return;
 
-            // Extraer datos de los bloques (ignoramos el plano en index 0)
             const sceneData = [];
+            // Ignoramos objects[0] que es el plano
             for (let i = 1; i < objects.length; i++) {
                 const obj = objects[i];
                 sceneData.push({
-                    x: obj.position.x,
-                    y: obj.position.y,
-                    z: obj.position.z,
+                    x: obj.position.x, y: obj.position.y, z: obj.position.z,
                     color: obj.material.color.getHex()
                 });
             }
 
-            // Obtener base de datos local
             const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
             savedGames[saveName] = sceneData;
-            
-            // Guardar
             localStorage.setItem('legoSaves', JSON.stringify(savedGames));
-            alert(`¡"${saveName}" guardado correctamente!`);
+            alert("¡Guardado!");
         }
 
-        window.openLoadMenu = function() {
+        function loadSavedList() {
             const listDiv = document.getElementById('saved-list');
-            listDiv.innerHTML = ''; // Limpiar lista anterior
-            
+            listDiv.innerHTML = '';
             const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
             const keys = Object.keys(savedGames);
 
-            if (keys.length === 0) {
-                listDiv.innerHTML = '<p>No hay construcciones guardadas.</p>';
-            } else {
+            if (keys.length === 0) listDiv.innerHTML = '<p>No hay nada guardado.</p>';
+            else {
                 keys.forEach(key => {
                     const row = document.createElement('div');
                     row.className = 'saved-item';
-                    
-                    // Botón Cargar
-                    const loadBtn = document.createElement('button');
-                    loadBtn.innerText = key;
-                    loadBtn.className = 'load-btn-action';
-                    loadBtn.onclick = () => loadScene(key);
-                    
-                    // Botón Borrar
-                    const delBtn = document.createElement('button');
-                    delBtn.innerText = '🗑️';
-                    delBtn.className = 'delete-btn-action';
-                    delBtn.onclick = () => deleteSave(key);
-
-                    row.appendChild(loadBtn);
-                    row.appendChild(delBtn);
+                    row.innerHTML = `
+                        <button class="btn-action btn-load" onclick="loadScene('${key}')">${key}</button>
+                        <button class="btn-action btn-delete" onclick="deleteSave('${key}')">🗑️</button>
+                    `;
                     listDiv.appendChild(row);
                 });
             }
-
-            document.getElementById('overlay-bg').style.display = 'block';
-            document.getElementById('load-modal').style.display = 'block';
-        }
-
-        window.closeModal = function() {
-            document.getElementById('overlay-bg').style.display = 'none';
-            document.getElementById('load-modal').style.display = 'none';
         }
 
         window.loadScene = function(key) {
             const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
             const data = savedGames[key];
-
             if (data) {
-                clearScene(); // Borrar actual
-                
-                // Reconstruir
-                data.forEach(blockData => {
-                    const voxel = new THREE.Mesh(cubeGeo, new THREE.MeshLambertMaterial({ color: blockData.color }));
-                    voxel.position.set(blockData.x, blockData.y, blockData.z);
+                clearScene();
+                data.forEach(d => {
+                    const voxel = new THREE.Mesh(cubeGeo, new THREE.MeshLambertMaterial({ color: d.color }));
+                    voxel.position.set(d.x, d.y, d.z);
                     scene.add(voxel);
                     objects.push(voxel);
                 });
-                
-                closeModal();
+                closeAllModals();
                 render();
             }
         }
 
         window.deleteSave = function(key) {
-            if(confirm(`¿Borrar "${key}" para siempre?`)) {
+            if(confirm(`¿Borrar "${key}"?`)) {
                 const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
                 delete savedGames[key];
                 localStorage.setItem('legoSaves', JSON.stringify(savedGames));
-                openLoadMenu(); // Refrescar lista
+                loadSavedList();
             }
         }
 
         function clearScene() {
-            // Eliminar todo menos el plano (index 0)
             for (let i = objects.length - 1; i > 0; i--) {
                 scene.remove(objects[i]);
                 objects.pop();
@@ -379,7 +433,7 @@
             render();
         }
 
-        // --- FUNCIONES CORE DEL JUEGO ---
+        // --- CORE ---
 
         window.setColor = function(element, hexColor) {
             currentColor = hexColor;
@@ -409,8 +463,7 @@
         }
 
         function onPointerDown(event) {
-            // Ignorar clics si son sobre UI
-            if(event.target.closest('.tool-btn') || event.target.closest('#ui-container') || event.target.closest('#load-modal')) return;
+            if(event.target.closest('.tool-btn') || event.target.closest('#ui-container') || event.target.closest('.modal')) return;
 
             pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
             raycaster.setFromCamera(pointer, camera);
@@ -443,7 +496,6 @@
             renderer.render(scene, camera);
         }
         animate();
-
     </script>
 </body>
 </html>
