@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Constructor de Bloques 3D</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: sans-serif; }
+        
+        /* UI Overlay */
+        #ui-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        .color-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 3px solid white;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        .color-btn:active { transform: scale(0.9); }
+        .color-btn.selected { border: 3px solid #333; transform: scale(1.1); }
+
+        #tools {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .tool-btn {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .tool-btn.active { background-color: #ffcccc; color: red; border: 2px solid red; }
+
+        #instructions {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.7);
+            padding: 10px;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="instructions">
+        <b>Controles:</b><br>
+        • Un dedo: Rotar cámara<br>
+        • Dos dedos: Zoom/Mover<br>
+        • Toque corto: Poner/Quitar bloque
+    </div>
+
+    <div id="tools">
+        <button id="btn-mode" class="tool-btn">🗑️</button> <button id="btn-clear" class="tool-btn">🔄</button> </div>
+
+    <div id="ui-container">
+        <div class="color-btn selected" style="background-color: #d32f2f;" onclick="setColor(this, 0xd32f2f)"></div> <div class="color-btn" style="background-color: #1976d2;" onclick="setColor(this, 0x1976d2)"></div> <div class="color-btn" style="background-color: #fbc02d;" onclick="setColor(this, 0xfbc02d)"></div> <div class="color-btn" style="background-color: #388e3c;" onclick="setColor(this, 0x388e3c)"></div> <div class="color-btn" style="background-color: #fff;" onclick="setColor(this, 0xffffff)"></div> <div class="color-btn" style="background-color: #212121;" onclick="setColor(this, 0x212121)"></div> </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let camera, scene, renderer;
+        let plane;
+        let pointer, raycaster;
+        let isShiftDown = false; // Modo borrar
+        
+        let rollOverMesh, rollOverMaterial;
+        let cubeGeo, cubeMaterial;
+        const objects = []; // Aquí guardamos los bloques puestos
+        
+        let currentColor = 0xd32f2f; // Rojo por defecto
+
+        init();
+        render();
+
+        function init() {
+            // 1. Configuración de la escena
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+
+            // 2. Cámara
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
+            camera.position.set(500, 800, 1300);
+            camera.lookAt(0, 0, 0);
+
+            // 3. Luces (Para que se vea 3D)
+            const ambientLight = new THREE.AmbientLight(0x606060, 3);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
+            directionalLight.position.set(1, 0.75, 0.5).normalize();
+            scene.add(directionalLight);
+
+            // 4. Roll-over (El fantasma que indica dónde vas a poner el bloque)
+            const rollOverGeo = new THREE.BoxGeometry(50, 50, 50);
+            rollOverMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.5, transparent: true });
+            rollOverMesh = new THREE.Mesh(rollOverGeo, rollOverMaterial);
+            scene.add(rollOverMesh);
+
+            // 5. Bloques Reales
+            cubeGeo = new THREE.BoxGeometry(50, 50, 50);
+            // Usamos LambertMaterial para que reaccione a la luz (sombras suaves)
+            cubeMaterial = new THREE.MeshLambertMaterial({ color: currentColor });
+
+            // 6. Grid (El piso)
+            const gridHelper = new THREE.GridHelper(1000, 20);
+            scene.add(gridHelper);
+
+            // 7. Plano invisible para detectar clics en el suelo
+            const geometry = new THREE.PlaneGeometry(1000, 1000);
+            geometry.rotateX(-Math.PI / 2);
+            plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
+            scene.add(plane);
+            objects.push(plane);
+
+            // 8. Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // 9. Controles (Raycaster y Orbit)
+            raycaster = new THREE.Raycaster();
+            pointer = new THREE.Vector2();
+
+            const controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // Suavizado
+            controls.dampingFactor = 0.05;
+
+            // Eventos
+            document.addEventListener('pointermove', onPointerMove);
+            document.addEventListener('pointerdown', onPointerDown); // Usamos pointerdown para mejor soporte táctil
+            window.addEventListener('resize', onWindowResize);
+
+            // Configurar botones UI
+            setupUI();
+        }
+
+        function setupUI() {
+            // Botón Borrar/Construir
+            const btnMode = document.getElementById('btn-mode');
+            btnMode.addEventListener('click', (e) => {
+                e.stopPropagation(); // Evitar poner bloque al tocar botón
+                isShiftDown = !isShiftDown;
+                if(isShiftDown) {
+                    btnMode.classList.add('active');
+                    rollOverMesh.visible = false; // Ocultar guía al borrar
+                } else {
+                    btnMode.classList.remove('active');
+                    rollOverMesh.visible = true;
+                }
+            });
+
+            // Botón Limpiar
+            document.getElementById('btn-clear').addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Eliminar todo menos el plano (índice 0)
+                for (let i = objects.length - 1; i > 0; i--) {
+                    scene.remove(objects[i]);
+                    objects.pop();
+                }
+                render();
+            });
+        }
+
+        // Función global para cambiar color desde el HTML
+        window.setColor = function(element, hexColor) {
+            currentColor = hexColor;
+            rollOverMaterial.color.setHex(hexColor);
+            
+            // Actualizar UI
+            document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            render();
+        }
+
+        function onPointerMove(event) {
+            pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+            
+            raycaster.setFromCamera(pointer, camera);
+            const intersects = raycaster.intersectObjects(objects, false);
+
+            if (intersects.length > 0 && !isShiftDown) {
+                const intersect = intersects[0];
+                rollOverMesh.position.copy(intersect.point).add(intersect.face.normal);
+                rollOverMesh.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
+                render();
+            }
+        }
+
+        function onPointerDown(event) {
+            // Si el toque fue en la UI, no hacer nada en el canvas 3D
+            if(event.target.closest('#ui-container') || event.target.closest('#tools')) return;
+
+            pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+            raycaster.setFromCamera(pointer, camera);
+            const intersects = raycaster.intersectObjects(objects, false);
+
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+
+                // MODO BORRAR
+                if (isShiftDown) {
+                    if (intersect.object !== plane) {
+                        scene.remove(intersect.object);
+                        objects.splice(objects.indexOf(intersect.object), 1);
+                    }
+                } 
+                // MODO CONSTRUIR
+                else {
+                    const voxel = new THREE.Mesh(cubeGeo, new THREE.MeshLambertMaterial({ color: currentColor }));
+                    voxel.position.copy(intersect.point).add(intersect.face.normal);
+                    voxel.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
+                    scene.add(voxel);
+                    objects.push(voxel);
+                }
+                render();
+            }
+        }
+
+        function render() {
+            renderer.render(scene, camera);
+        }
+        
+        // Loop de animación para controles suaves
+        function animate() {
+            requestAnimationFrame(animate);
+            // controls.update(); // Llamado por OrbitControls internamente si damping activo
+            renderer.render(scene, camera);
+        }
+        animate();
+
+    </script>
+</body>
+</html>
