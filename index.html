@@ -2,131 +2,71 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Lego Builder 3.0 - Configurable</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lego Builder 4.1 - Cámara Corregida</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: 'Segoe UI', sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         
-        /* UI Overlay */
-        #ui-container {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 12px;
-            border-radius: 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-            z-index: 10;
-        }
+        /* --- UI Builder Mode --- */
+        #builder-ui { transition: opacity 0.3s; }
+        #builder-ui.hidden { opacity: 0; pointer-events: none; }
 
-        .color-btn {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            border: 3px solid white;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            transition: transform 0.1s;
+        #ui-container {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 10px; background: rgba(255, 255, 255, 0.9); padding: 12px;
+            border-radius: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); z-index: 10;
         }
+        .color-btn { width: 45px; height: 45px; border-radius: 50%; border: 3px solid white; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); transition: transform 0.1s; }
         .color-btn.selected { border: 3px solid #333; transform: scale(1.15); }
 
-        #tools {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .tool-btn {
-            width: 55px;
-            height: 55px;
-            background: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: all 0.2s;
-        }
+        #tools { position: absolute; top: 20px; right: 20px; display: flex; flexDirection: column; gap: 10px; z-index: 20;}
+        .tool-btn { width: 55px; height: 55px; background: white; border: none; border-radius: 12px; font-size: 24px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.2s; }
         .tool-btn:active { transform: scale(0.95); }
         .tool-btn.active { background-color: #ffcccc; color: red; border: 2px solid red; }
+        #btn-toggle-play { background-color: #e3f2fd; color: #1565c0; border: 2px solid #1565c0; font-weight: bold;}
 
-        /* Estilos para Modales (Carga y Configuración) */
-        .modal {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            z-index: 20;
-            width: 85%;
-            max-width: 320px;
-            max-height: 75%;
-            overflow-y: auto;
-            text-align: center;
+        /* --- UI Player Mode (Mobile Controls) --- */
+        #player-controls {
+            display: none; position: absolute; bottom: 30px; left: 30px; z-index: 15;
+            touch-action: none; 
         }
+        #player-controls.visible { display: grid; grid-template-columns: 70px 70px 70px; grid-template-rows: 70px 70px; gap: 5px; }
         
+        .dpad-btn {
+            width: 70px; height: 70px; background: rgba(255,255,255,0.5); border: 2px solid #fff;
+            border-radius: 15px; font-size: 35px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer;
+        }
+        .dpad-btn:active { background: rgba(33, 150, 243, 0.5); color: white; }
+        #dpad-up { grid-column: 2; grid-row: 1; }
+        #dpad-left { grid-column: 1; grid-row: 2; }
+        #dpad-down { grid-column: 2; grid-row: 2; }
+        #dpad-right { grid-column: 3; grid-row: 2; }
+
+        #jump-btn-container {
+             display: none; position: absolute; bottom: 40px; right: 40px; z-index: 15;
+        }
+        #jump-btn-container.visible { display: block; }
+        .jump-btn {
+             width: 90px; height: 90px; background: rgba(255,255,255,0.5); border: 3px solid #fff;
+             border-radius: 50%; font-size: 20px; font-weight: bold; color: #333;
+             touch-action: none;
+        }
+        .jump-btn:active { background: rgba(76, 175, 80, 0.5); transform: scale(0.95); color: white;}
+
+
+        /* --- Modals --- */
+        .modal { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); z-index: 30; width: 85%; max-width: 320px; max-height: 75%; overflow-y: auto; text-align: center; }
         .modal h2 { margin-top: 0; color: #333; font-size: 1.5rem; }
         .modal label { display: block; margin: 15px 0 5px; font-weight: bold; text-align: left; }
-        
-        /* Estilos específicos de Configuración */
-        select {
-            width: 100%;
-            padding: 10px;
-            font-size: 16px;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            margin-bottom: 20px;
-            background: #f9f9f9;
-        }
-
-        /* Estilos lista guardado */
-        .saved-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #f5f5f5;
-            padding: 10px;
-            margin-bottom: 8px;
-            border-radius: 8px;
-        }
-        
-        .btn-primary {
-            background: #2196F3; color: white; border: none;
-            padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px;
-        }
-        
+        select { width: 100%; padding: 10px; font-size: 16px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 20px; background: #f9f9f9; }
+        .saved-item { display: flex; justify-content: space-between; align-items: center; background: #f5f5f5; padding: 10px; margin-bottom: 8px; border-radius: 8px; }
+        .btn-primary { background: #2196F3; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; font-size: 16px; }
         .btn-action { padding: 8px 12px; border-radius: 5px; border: none; cursor: pointer; color: white; }
         .btn-load { background: #4CAF50; flex-grow: 1; margin-right: 5px; }
         .btn-delete { background: #ff5252; }
-
-        .close-modal-btn {
-            margin-top: 15px;
-            background: transparent;
-            border: 1px solid #ccc;
-            padding: 8px 20px;
-            border-radius: 20px;
-            cursor: pointer;
-            color: #666;
-        }
-
-        #overlay-bg {
-            display: none;
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(2px);
-            z-index: 15;
-        }
+        .close-modal-btn { margin-top: 15px; background: transparent; border: 1px solid #ccc; padding: 8px 20px; border-radius: 20px; cursor: pointer; color: #666; }
+        #overlay-bg { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 25; }
     </style>
     <script type="importmap">
         {
@@ -146,92 +86,105 @@
         <div id="saved-list"></div>
         <button class="close-modal-btn" onclick="closeAllModals()">Cerrar</button>
     </div>
-
     <div id="settings-modal" class="modal">
         <h2>⚙️ Configuración</h2>
-        
-        <label for="map-size">Tamaño del Mapa:</label>
+        <label for="map-size">Tamaño del Mapa (Reinicia):</label>
         <select id="map-size">
             <option value="1000">Normal (20x20)</option>
             <option value="2000">Grande (40x40)</option>
             <option value="3000">Enorme (60x60)</option>
         </select>
-
         <button class="btn-primary" onclick="saveSettings()">Guardar y Aplicar</button>
         <button class="close-modal-btn" onclick="closeAllModals()">Cancelar</button>
     </div>
 
     <div id="tools">
-        <button id="btn-settings" class="tool-btn" title="Configuración">⚙️</button>
-        <button id="btn-save" class="tool-btn" title="Guardar">💾</button>
-        <button id="btn-load" class="tool-btn" title="Cargar">📂</button>
-        <button id="btn-mode" class="tool-btn" title="Borrar Bloques">🗑️</button>
-        <button id="btn-clear" class="tool-btn" title="Limpiar Todo">🔄</button>
+        <button id="btn-toggle-play" class="tool-btn" title="Cambiar Modo">🎮</button>
+        <div id="builder-tools">
+            <button id="btn-settings" class="tool-btn" title="Configuración">⚙️</button>
+            <button id="btn-save" class="tool-btn" title="Guardar">💾</button>
+            <button id="btn-load" class="tool-btn" title="Cargar">📂</button>
+            <button id="btn-mode" class="tool-btn" title="Borrar Bloques">🗑️</button>
+            <button id="btn-clear" class="tool-btn" title="Limpiar Todo">🔄</button>
+        </div>
     </div>
 
-    <div id="ui-container">
-        <div class="color-btn selected" style="background-color: #d32f2f;" onclick="setColor(this, 0xd32f2f)"></div>
-        <div class="color-btn" style="background-color: #1976d2;" onclick="setColor(this, 0x1976d2)"></div>
-        <div class="color-btn" style="background-color: #fbc02d;" onclick="setColor(this, 0xfbc02d)"></div>
-        <div class="color-btn" style="background-color: #388e3c;" onclick="setColor(this, 0x388e3c)"></div>
-        <div class="color-btn" style="background-color: #9c27b0;" onclick="setColor(this, 0x9c27b0)"></div>
-        <div class="color-btn" style="background-color: #fff;" onclick="setColor(this, 0xffffff)"></div>
-        <div class="color-btn" style="background-color: #212121;" onclick="setColor(this, 0x212121)"></div>
+    <div id="builder-ui">
+        <div id="ui-container">
+            <div class="color-btn selected" style="background-color: #d32f2f;" onclick="setColor(this, 0xd32f2f)"></div>
+            <div class="color-btn" style="background-color: #1976d2;" onclick="setColor(this, 0x1976d2)"></div>
+            <div class="color-btn" style="background-color: #fbc02d;" onclick="setColor(this, 0xfbc02d)"></div>
+            <div class="color-btn" style="background-color: #388e3c;" onclick="setColor(this, 0x388e3c)"></div>
+            <div class="color-btn" style="background-color: #9c27b0;" onclick="setColor(this, 0x9c27b0)"></div>
+            <div class="color-btn" style="background-color: #fff;" onclick="setColor(this, 0xffffff)"></div>
+            <div class="color-btn" style="background-color: #212121;" onclick="setColor(this, 0x212121)"></div>
+        </div>
+    </div>
+
+    <div id="player-controls">
+        <div class="dpad-btn" id="dpad-up">⬆️</div>
+        <div class="dpad-btn" id="dpad-left">⬅️</div>
+        <div class="dpad-btn" id="dpad-down">⬇️</div>
+        <div class="dpad-btn" id="dpad-right">➡️</div>
+    </div>
+    <div id="jump-btn-container">
+        <button class="jump-btn" id="btn-jump">SALTAR</button>
     </div>
 
     <script type="module">
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        let camera, scene, renderer;
+        // --- CORE GLOBALS ---
+        let camera, scene, renderer, controls;
         let plane, gridHelper;
         let pointer, raycaster;
+        
         let isShiftDown = false; 
-        
-        let rollOverMesh, rollOverMaterial;
-        let cubeGeo;
-        
-        // objects[0] siempre será el plano del suelo
+        let rollOverMesh, rollOverMaterial, cubeGeo;
         let objects = []; 
-        
         let currentColor = 0xd32f2f;
-        
-        // Configuración por defecto
-        let appSettings = {
-            mapSize: 1000
-        };
+        let appSettings = { mapSize: 1000 };
+
+        // Player Mode Globals
+        let isPlayingMode = false;
+        let player;
+        // Ajuste de velocidad y salto para mejor sensación
+        const playerConfig = { height: 90, radius: 20, speed: 500, jumpForce: 800, gravity: 2200 };
+        let playerVelocity = new THREE.Vector3();
+        let playerOnGround = false;
+        let moveInput = { up: false, down: false, left: false, right: false, jump: false };
+        let clock = new THREE.Clock(); 
 
         init();
-        render();
+        animate();
 
         function init() {
-            // Cargar configuración guardada
             loadSettingsFromStorage();
 
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf0f0f0);
+            scene.fog = new THREE.FogExp2(0xf0f0f0, 0.0002);
 
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
-            camera.position.set(500, 800, 1300);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 5000);
+            camera.position.set(500, 600, 800);
             camera.lookAt(0, 0, 0);
 
-            // Luces
-            const ambientLight = new THREE.AmbientLight(0x606060, 3);
+            const ambientLight = new THREE.AmbientLight(0xCCCCCC, 2);
             scene.add(ambientLight);
             const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
-            directionalLight.position.set(1, 0.75, 0.5).normalize();
+            directionalLight.position.set(1, 2, 1).normalize();
             scene.add(directionalLight);
 
-            // Cursor Fantasma
+            // Builder stuff
             const rollOverGeo = new THREE.BoxGeometry(50, 50, 50);
-            rollOverMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.5, transparent: true });
+            rollOverMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.5, transparent: true, visible: true });
             rollOverMesh = new THREE.Mesh(rollOverGeo, rollOverMaterial);
             scene.add(rollOverMesh);
-
             cubeGeo = new THREE.BoxGeometry(50, 50, 50);
             
-            // CREAR EL ENTORNO (Grid y Suelo) basado en configuración
             updateEnvironment(appSettings.mapSize);
+            createPlayer();
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setPixelRatio(window.devicePixelRatio);
@@ -241,234 +194,290 @@
             raycaster = new THREE.Raycaster();
             pointer = new THREE.Vector2();
 
-            const controls = new OrbitControls(camera, renderer.domElement);
+            controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.maxPolarAngle = Math.PI / 2 - 0.05; // Evitar que la cámara pase bajo el suelo
+            controls.maxPolarAngle = Math.PI / 2 - 0.05;
+            controls.minDistance = 100;
+            controls.maxDistance = 3000;
 
             document.addEventListener('pointermove', onPointerMove);
             document.addEventListener('pointerdown', onPointerDown);
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
             window.addEventListener('resize', onWindowResize);
 
             setupUI();
+            setupMobileControls();
         }
 
-        // --- GESTIÓN DEL ENTORNO Y CONFIGURACIÓN ---
+        function createPlayer() {
+            // Grupo Jugador (Cuerpo + Ojos)
+            player = new THREE.Group();
 
-        function updateEnvironment(size) {
-            // Limpiar grid y plano anteriores si existen
-            if (gridHelper) scene.remove(gridHelper);
-            if (plane) scene.remove(plane);
+            // Cuerpo
+            const geometry = new THREE.CapsuleGeometry(playerConfig.radius, playerConfig.height - playerConfig.radius * 2, 8, 16);
+            const material = new THREE.MeshLambertMaterial({ color: 0x00ffff }); 
+            const body = new THREE.Mesh(geometry, material);
+            player.add(body);
+
+            // Ojos (para ver dirección)
+            const eyeGeo = new THREE.BoxGeometry(10, 10, 5);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+            const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye1.position.set(-8, 20, 15); // Ojo izquierdo
+            eye2.position.set(8, 20, 15);  // Ojo derecho
+            player.add(eye1);
+            player.add(eye2);
+
+            player.position.set(0, playerConfig.height/2 + 10, 0); 
+            player.visible = false; 
+            scene.add(player);
+        }
+
+        // --- PHYSICS & MOVEMENT LOOP ---
+        function updatePlayerPhysics(delta) {
+            if (!isPlayingMode) return;
+
+            // 1. Gravedad
+            playerVelocity.y -= playerConfig.gravity * delta;
+
+            // 2. Input de Movimiento
+            let moveX = 0;
+            let moveZ = 0;
             
-            // Si el plano estaba en objects[0], quitarlo
-            if (objects.length > 0 && objects[0].isPlane) {
-                objects.shift(); 
+            // En este modo, "Arriba" es avanzar (Z negativo) y "Derecha" es X positivo
+            if (moveInput.up) moveZ = -1;
+            if (moveInput.down) moveZ = 1;
+            if (moveInput.left) moveX = -1;
+            if (moveInput.right) moveX = 1;
+
+            const moveVector = new THREE.Vector3(moveX, 0, moveZ);
+            if(moveVector.lengthSq() > 0) moveVector.normalize();
+
+            // Aplicar velocidad
+            playerVelocity.x = moveVector.x * playerConfig.speed;
+            playerVelocity.z = moveVector.z * playerConfig.speed;
+
+            // Rotar personaje hacia donde se mueve
+            if (moveVector.lengthSq() > 0.1) {
+                const targetRotation = Math.atan2(playerVelocity.x, playerVelocity.z);
+                // Rotación suave
+                player.rotation.y = targetRotation; 
             }
 
-            // Crear nuevo Grid
-            // Size = tamaño total, 50 = tamaño de cada celda
-            gridHelper = new THREE.GridHelper(size, size / 50);
-            scene.add(gridHelper);
-
-            // Crear nuevo Plano de Raycasting (invisible)
-            const geometry = new THREE.PlaneGeometry(size, size);
-            geometry.rotateX(-Math.PI / 2);
-            plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
-            plane.isPlane = true; // Marca para identificarlo
-            scene.add(plane);
-            
-            // Insertar el plano al principio del array de objetos
-            objects.unshift(plane);
-        }
-
-        function loadSettingsFromStorage() {
-            const saved = localStorage.getItem('legoSettings');
-            if (saved) {
-                appSettings = JSON.parse(saved);
-                // Actualizar selector UI
-                document.getElementById('map-size').value = appSettings.mapSize;
+            // 3. Salto
+            if (moveInput.jump && playerOnGround) {
+                playerVelocity.y = playerConfig.jumpForce;
+                playerOnGround = false;
+                moveInput.jump = false; 
             }
-        }
 
-        window.saveSettings = function() {
-            const sizeSelect = document.getElementById('map-size');
-            const newSize = parseInt(sizeSelect.value);
+            // 4. Colisiones Básicas
+            playerOnGround = false;
+            const colliders = objects; 
 
-            appSettings.mapSize = newSize;
-            localStorage.setItem('legoSettings', JSON.stringify(appSettings));
+            // A. Suelo
+            const downRay = new THREE.Raycaster(player.position, new THREE.Vector3(0, -1, 0), 0, playerConfig.height/2 + 5);
+            const downHits = downRay.intersectObjects(colliders, false);
             
-            updateEnvironment(newSize);
-            closeAllModals();
-            render();
-            alert("¡Configuración guardada y aplicada!");
+            if (downHits.length > 0 && playerVelocity.y <= 0) {
+                 player.position.y = downHits[0].point.y + playerConfig.height / 2;
+                 playerVelocity.y = 0;
+                 playerOnGround = true;
+            }
+
+            // B. Paredes (Simple)
+            if (moveVector.lengthSq() > 0) {
+                const dir = new THREE.Vector3(moveVector.x, 0, moveVector.z).normalize();
+                const forwardRay = new THREE.Raycaster(
+                    new THREE.Vector3(player.position.x, player.position.y - 10, player.position.z), 
+                    dir, 
+                    0, 
+                    playerConfig.radius + 10
+                );
+                const wallHits = forwardRay.intersectObjects(objects.slice(1), false); 
+                if (wallHits.length > 0) {
+                    playerVelocity.x = 0;
+                    playerVelocity.z = 0;
+                }
+            }
+
+            // 5. Aplicar
+            player.position.x += playerVelocity.x * delta;
+            player.position.y += playerVelocity.y * delta;
+            player.position.z += playerVelocity.z * delta;
+
+            if (player.position.y < -300) resetPlayerPosition();
         }
 
-        // --- UI SETUP ---
+        function resetPlayerPosition() {
+             player.position.set(0, 200, 0);
+             playerVelocity.set(0,0,0);
+        }
+
+        function updateCameraFollow(delta) {
+             // CÁMARA TIPO PLATAFORMERO FIJA
+             // En lugar de rotar con el usuario, la cámara sigue al personaje desde una posición fija
+             // Esto evita mareos y problemas de dirección
+             
+             const offsetHeight = 150;
+             const offsetDepth = 250; // Distancia atrás
+
+             const idealPosition = new THREE.Vector3(
+                 player.position.x, 
+                 player.position.y + offsetHeight, 
+                 player.position.z + offsetDepth
+             );
+             
+             // Interpolación para suavidad
+             camera.position.lerp(idealPosition, 4 * delta);
+             camera.lookAt(player.position);
+        }
+
+
+        // --- UI & CONTROLS ---
 
         function setupUI() {
+            const btnToggle = document.getElementById('btn-toggle-play');
+            btnToggle.addEventListener('click', togglePlayMode);
+
             const btnMode = document.getElementById('btn-mode');
             btnMode.addEventListener('click', (e) => {
                 e.stopPropagation();
                 isShiftDown = !isShiftDown;
-                if(isShiftDown) {
-                    btnMode.classList.add('active');
-                    rollOverMesh.visible = false;
-                } else {
-                    btnMode.classList.remove('active');
-                    rollOverMesh.visible = true;
-                }
+                btnMode.classList.toggle('active', isShiftDown);
+                if (!isPlayingMode) rollOverMesh.visible = !isShiftDown;
             });
-
             document.getElementById('btn-clear').addEventListener('click', (e) => {
-                e.stopPropagation();
-                if(confirm("¿Borrar todo el escenario?")) clearScene();
+                 e.stopPropagation(); if(confirm("¿Borrar todo?")) clearScene();
             });
+            document.getElementById('btn-save').addEventListener('click', (e) => { e.stopPropagation(); saveScene(); });
+            document.getElementById('btn-load').addEventListener('click', (e) => { e.stopPropagation(); openModal('load-modal'); loadSavedList(); });
+            document.getElementById('btn-settings').addEventListener('click', (e) => { e.stopPropagation(); openModal('settings-modal'); });
+        }
 
-            document.getElementById('btn-save').addEventListener('click', (e) => {
-                e.stopPropagation();
-                saveScene();
+        function setupMobileControls() {
+            const dpad = ['up', 'left', 'down', 'right'];
+            dpad.forEach(dir => {
+                const btn = document.getElementById('dpad-' + dir);
+                // Soporte Touch y Mouse
+                const start = (e) => { e.preventDefault(); moveInput[dir] = true; btn.style.backgroundColor = 'rgba(33, 150, 243, 0.5)'; };
+                const end = (e) => { e.preventDefault(); moveInput[dir] = false; btn.style.backgroundColor = 'rgba(255,255,255,0.5)'; };
+                
+                btn.addEventListener('touchstart', start, {passive: false});
+                btn.addEventListener('touchend', end);
+                btn.addEventListener('mousedown', start);
+                btn.addEventListener('mouseup', end);
+                btn.addEventListener('mouseleave', end);
             });
-
-            document.getElementById('btn-load').addEventListener('click', (e) => {
-                e.stopPropagation();
-                openModal('load-modal');
-                loadSavedList();
-            });
-
-            // Nuevo botón Settings
-            document.getElementById('btn-settings').addEventListener('click', (e) => {
-                e.stopPropagation();
-                openModal('settings-modal');
-            });
+            
+            const jumpBtn = document.getElementById('btn-jump');
+            const startJump = (e) => { e.preventDefault(); moveInput.jump = true; };
+            const endJump = (e) => { e.preventDefault(); moveInput.jump = false; };
+            
+            jumpBtn.addEventListener('touchstart', startJump, {passive: false});
+            jumpBtn.addEventListener('touchend', endJump);
+            jumpBtn.addEventListener('mousedown', startJump);
+            jumpBtn.addEventListener('mouseup', endJump);
         }
 
-        // --- MODALES ---
-        
-        window.openModal = function(id) {
-            document.getElementById('overlay-bg').style.display = 'block';
-            document.getElementById(id).style.display = 'block';
-        }
+        function togglePlayMode(e) {
+            e.stopPropagation();
+            isPlayingMode = !isPlayingMode;
+            const btnToggle = document.getElementById('btn-toggle-play');
+            const builderTools = document.getElementById('builder-tools');
+            const builderUI = document.getElementById('builder-ui');
+            const playerControls = document.getElementById('player-controls');
+            const jumpControls = document.getElementById('jump-btn-container');
 
-        window.closeAllModals = function() {
-            document.getElementById('overlay-bg').style.display = 'none';
-            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
-        }
+            if (isPlayingMode) {
+                // --- MODO JUEGO ---
+                btnToggle.innerHTML = '🔨'; 
+                builderTools.style.display = 'none';
+                builderUI.classList.add('hidden');
+                playerControls.classList.add('visible');
+                jumpControls.classList.add('visible');
+                
+                player.visible = true;
+                rollOverMesh.visible = false;
+                controls.enabled = false; 
+                
+                // CAMBIO DE CÁMARA: Forzar posición detrás del jugador inmediatamente
+                player.rotation.set(0,0,0);
+                camera.position.set(player.position.x, player.position.y + 150, player.position.z + 250);
+                camera.lookAt(player.position);
 
-        // --- GUARDADO / CARGA ---
+                if(player.position.y < 0) resetPlayerPosition();
 
-        function saveScene() {
-            if (objects.length <= 1) {
-                alert("¡Construye algo primero!");
-                return;
-            }
-            let saveName = prompt("Nombre de tu construcción:", "Mi Lego 1");
-            if (!saveName) return;
+            } else {
+                // --- MODO CONSTRUIR ---
+                btnToggle.innerHTML = '🎮';
+                builderTools.style.display = 'flex';
+                builderUI.classList.remove('hidden');
+                playerControls.classList.remove('visible');
+                jumpControls.classList.remove('visible');
 
-            const sceneData = [];
-            // Ignoramos objects[0] que es el plano
-            for (let i = 1; i < objects.length; i++) {
-                const obj = objects[i];
-                sceneData.push({
-                    x: obj.position.x, y: obj.position.y, z: obj.position.z,
-                    color: obj.material.color.getHex()
-                });
-            }
-
-            const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
-            savedGames[saveName] = sceneData;
-            localStorage.setItem('legoSaves', JSON.stringify(savedGames));
-            alert("¡Guardado!");
-        }
-
-        function loadSavedList() {
-            const listDiv = document.getElementById('saved-list');
-            listDiv.innerHTML = '';
-            const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
-            const keys = Object.keys(savedGames);
-
-            if (keys.length === 0) listDiv.innerHTML = '<p>No hay nada guardado.</p>';
-            else {
-                keys.forEach(key => {
-                    const row = document.createElement('div');
-                    row.className = 'saved-item';
-                    row.innerHTML = `
-                        <button class="btn-action btn-load" onclick="loadScene('${key}')">${key}</button>
-                        <button class="btn-action btn-delete" onclick="deleteSave('${key}')">🗑️</button>
-                    `;
-                    listDiv.appendChild(row);
-                });
+                player.visible = false;
+                rollOverMesh.visible = !isShiftDown;
+                controls.enabled = true; 
+                
+                // Restaurar cámara aérea
+                camera.position.set(500, 800, 1300);
+                camera.lookAt(0,0,0);
             }
         }
 
-        window.loadScene = function(key) {
-            const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
-            const data = savedGames[key];
-            if (data) {
-                clearScene();
-                data.forEach(d => {
-                    const voxel = new THREE.Mesh(cubeGeo, new THREE.MeshLambertMaterial({ color: d.color }));
-                    voxel.position.set(d.x, d.y, d.z);
-                    scene.add(voxel);
-                    objects.push(voxel);
-                });
-                closeAllModals();
-                render();
+
+        // --- INPUTS PC ---
+        function onKeyDown(event) {
+            if (!isPlayingMode) {
+                 if(event.key === 'Shift') { isShiftDown = true; rollOverMesh.visible = false; document.getElementById('btn-mode').classList.add('active'); }
+                 return;
+            }
+            switch (event.code) {
+                case 'ArrowUp': case 'KeyW': moveInput.up = true; break;
+                case 'ArrowLeft': case 'KeyA': moveInput.left = true; break;
+                case 'ArrowDown': case 'KeyS': moveInput.down = true; break;
+                case 'ArrowRight': case 'KeyD': moveInput.right = true; break;
+                case 'Space': moveInput.jump = true; break;
             }
         }
 
-        window.deleteSave = function(key) {
-            if(confirm(`¿Borrar "${key}"?`)) {
-                const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
-                delete savedGames[key];
-                localStorage.setItem('legoSaves', JSON.stringify(savedGames));
-                loadSavedList();
+        function onKeyUp(event) {
+            if (!isPlayingMode) {
+                 if(event.key === 'Shift') { isShiftDown = false; rollOverMesh.visible = true; document.getElementById('btn-mode').classList.remove('active'); }
+                 return;
+            }
+            switch (event.code) {
+                case 'ArrowUp': case 'KeyW': moveInput.up = false; break;
+                case 'ArrowLeft': case 'KeyA': moveInput.left = false; break;
+                case 'ArrowDown': case 'KeyS': moveInput.down = false; break;
+                case 'ArrowRight': case 'KeyD': moveInput.right = false; break;
+                 case 'Space': moveInput.jump = false; break;
             }
         }
 
-        function clearScene() {
-            for (let i = objects.length - 1; i > 0; i--) {
-                scene.remove(objects[i]);
-                objects.pop();
-            }
-            render();
-        }
-
-        // --- CORE ---
-
-        window.setColor = function(element, hexColor) {
-            currentColor = hexColor;
-            rollOverMaterial.color.setHex(hexColor);
-            document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('selected'));
-            element.classList.add('selected');
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            render();
-        }
-
+        // --- POINTER EVENTS ---
         function onPointerMove(event) {
+            if(isPlayingMode) return; 
             pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
             raycaster.setFromCamera(pointer, camera);
             const intersects = raycaster.intersectObjects(objects, false);
-
             if (intersects.length > 0 && !isShiftDown) {
                 const intersect = intersects[0];
                 rollOverMesh.position.copy(intersect.point).add(intersect.face.normal);
                 rollOverMesh.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
-                render();
             }
         }
 
         function onPointerDown(event) {
+            if(isPlayingMode) return; 
             if(event.target.closest('.tool-btn') || event.target.closest('#ui-container') || event.target.closest('.modal')) return;
-
             pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
             raycaster.setFromCamera(pointer, camera);
             const intersects = raycaster.intersectObjects(objects, false);
-
             if (intersects.length > 0) {
                 const intersect = intersects[0];
                 if (isShiftDown) {
@@ -480,22 +489,82 @@
                     const voxel = new THREE.Mesh(cubeGeo, new THREE.MeshLambertMaterial({ color: currentColor }));
                     voxel.position.copy(intersect.point).add(intersect.face.normal);
                     voxel.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
+                    voxel.matrixAutoUpdate = false; voxel.updateMatrix(); 
                     scene.add(voxel);
                     objects.push(voxel);
                 }
-                render();
             }
         }
 
-        function render() {
-            renderer.render(scene, camera);
+        // --- ENVIRONMENT & SAVING (Standard) ---
+        function updateEnvironment(size) {
+            if (gridHelper) scene.remove(gridHelper);
+            if (plane) scene.remove(plane);
+            if (objects.length > 0 && objects[0].isPlane) objects.shift();
+            gridHelper = new THREE.GridHelper(size, size / 50);
+            scene.add(gridHelper);
+            const geometry = new THREE.PlaneGeometry(size, size);
+            geometry.rotateX(-Math.PI / 2);
+            plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
+            plane.isPlane = true;
+            scene.add(plane);
+            objects.unshift(plane);
         }
-        
+        function loadSettingsFromStorage() {
+            const saved = localStorage.getItem('legoSettings');
+            if (saved) { appSettings = JSON.parse(saved); document.getElementById('map-size').value = appSettings.mapSize; }
+        }
+        window.saveSettings = function() {
+            const newSize = parseInt(document.getElementById('map-size').value);
+            appSettings.mapSize = newSize;
+            localStorage.setItem('legoSettings', JSON.stringify(appSettings));
+            updateEnvironment(newSize); closeAllModals(); alert("¡Configuración aplicada!");
+             if(isPlayingMode) resetPlayerPosition();
+        }
+
+        window.openModal = function(id) { document.getElementById('overlay-bg').style.display = 'block'; document.getElementById(id).style.display = 'block'; }
+        window.closeAllModals = function() { document.getElementById('overlay-bg').style.display = 'none'; document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+        window.saveScene = function() {
+            if (objects.length <= 1) { alert("¡Construye algo primero!"); return; }
+            let saveName = prompt("Nombre:", "Nivel 1"); if (!saveName) return;
+            const sceneData = [];
+            for (let i = 1; i < objects.length; i++) {
+                sceneData.push({ x: objects[i].position.x, y: objects[i].position.y, z: objects[i].position.z, color: objects[i].material.color.getHex() });
+            }
+            const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
+            savedGames[saveName] = sceneData;
+            localStorage.setItem('legoSaves', JSON.stringify(savedGames)); alert("¡Guardado!");
+        }
+        window.loadSavedList = function() {
+            const listDiv = document.getElementById('saved-list'); listDiv.innerHTML = '';
+            const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}'); const keys = Object.keys(savedGames);
+            if (keys.length === 0) listDiv.innerHTML = '<p>No hay nada guardado.</p>';
+            else { keys.forEach(key => { listDiv.innerHTML += `<div class="saved-item"><button class="btn-action btn-load" onclick="loadScene('${key}')">${key}</button><button class="btn-action btn-delete" onclick="deleteSave('${key}')">🗑️</button></div>`; }); }
+        }
+        window.loadScene = function(key) {
+            const data = JSON.parse(localStorage.getItem('legoSaves') || '{}')[key];
+            if (data) { clearScene(); data.forEach(d => { const v = new THREE.Mesh(cubeGeo, new THREE.MeshLambertMaterial({ color: d.color })); v.position.set(d.x, d.y, d.z); v.matrixAutoUpdate=false; v.updateMatrix(); scene.add(v); objects.push(v); }); closeAllModals(); }
+        }
+        window.deleteSave = function(key) { if(confirm(`¿Borrar "${key}"?`)) { const s = JSON.parse(localStorage.getItem('legoSaves') || '{}'); delete s[key]; localStorage.setItem('legoSaves', JSON.stringify(s)); loadSavedList(); }}
+        window.clearScene = function() { for (let i = objects.length - 1; i > 0; i--) { scene.remove(objects[i]); objects.pop(); } if(isPlayingMode) resetPlayerPosition(); }
+        window.setColor = function(el, hex) { currentColor = hex; rollOverMaterial.color.setHex(hex); document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected')); el.classList.add('selected'); }
+
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
         function animate() {
             requestAnimationFrame(animate);
+            const delta = clock.getDelta(); 
+            if (isPlayingMode) {
+                updatePlayerPhysics(delta);
+                updateCameraFollow(delta);
+            } else {
+                controls.update(); 
+            }
             renderer.render(scene, camera);
         }
-        animate();
     </script>
 </body>
 </html>
