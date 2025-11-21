@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Constructor de Bloques 3D</title>
+    <title>Lego Builder 2.0 - Guardar y Cargar</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: sans-serif; }
         
@@ -15,7 +15,7 @@
             transform: translateX(-50%);
             display: flex;
             gap: 10px;
-            background: rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.9);
             padding: 10px;
             border-radius: 15px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
@@ -23,15 +23,14 @@
         }
 
         .color-btn {
-            width: 50px;
-            height: 50px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             border: 3px solid white;
             cursor: pointer;
             box-shadow: 0 2px 4px rgba(0,0,0,0.2);
             transition: transform 0.1s;
         }
-        .color-btn:active { transform: scale(0.9); }
         .color-btn.selected { border: 3px solid #333; transform: scale(1.1); }
 
         #tools {
@@ -44,26 +43,89 @@
         }
 
         .tool-btn {
-            width: 60px;
-            height: 60px;
+            width: 55px;
+            height: 55px;
             background: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             font-size: 24px;
             cursor: pointer;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background 0.2s;
         }
+        .tool-btn:active { transform: scale(0.95); }
         .tool-btn.active { background-color: #ffcccc; color: red; border: 2px solid red; }
 
-        #instructions {
+        /* Menú de Carga (Modal) */
+        #load-modal {
+            display: none;
             position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(255,255,255,0.7);
-            padding: 10px;
-            border-radius: 8px;
-            pointer-events: none;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            z-index: 20;
+            width: 80%;
+            max-width: 300px;
+            max-height: 70%;
+            overflow-y: auto;
+            text-align: center;
         }
+        
+        #load-modal h2 { margin-top: 0; color: #333; }
+        
+        .saved-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f5f5f5;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+        }
+        
+        .load-btn-action {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            flex-grow: 1;
+            margin-right: 5px;
+            font-weight: bold;
+        }
+        
+        .delete-btn-action {
+            background: #ff5252;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .close-modal-btn {
+            margin-top: 15px;
+            background: #ddd;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #overlay-bg {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            z-index: 15;
+        }
+
     </style>
     <script type="importmap">
         {
@@ -76,18 +138,30 @@
 </head>
 <body>
 
-    <div id="instructions">
-        <b>Controles:</b><br>
-        • Un dedo: Rotar cámara<br>
-        • Dos dedos: Zoom/Mover<br>
-        • Toque corto: Poner/Quitar bloque
+    <div id="overlay-bg"></div>
+
+    <div id="load-modal">
+        <h2>Mis Construcciones</h2>
+        <div id="saved-list">
+            </div>
+        <button class="close-modal-btn" onclick="closeModal()">Cerrar</button>
     </div>
 
     <div id="tools">
-        <button id="btn-mode" class="tool-btn">🗑️</button> <button id="btn-clear" class="tool-btn">🔄</button> </div>
+        <button id="btn-save" class="tool-btn" title="Guardar">💾</button>
+        <button id="btn-load" class="tool-btn" title="Cargar">📂</button>
+        <button id="btn-mode" class="tool-btn" title="Borrar Bloques">🗑️</button>
+        <button id="btn-clear" class="tool-btn" title="Limpiar Todo">🔄</button>
+    </div>
 
     <div id="ui-container">
-        <div class="color-btn selected" style="background-color: #d32f2f;" onclick="setColor(this, 0xd32f2f)"></div> <div class="color-btn" style="background-color: #1976d2;" onclick="setColor(this, 0x1976d2)"></div> <div class="color-btn" style="background-color: #fbc02d;" onclick="setColor(this, 0xfbc02d)"></div> <div class="color-btn" style="background-color: #388e3c;" onclick="setColor(this, 0x388e3c)"></div> <div class="color-btn" style="background-color: #fff;" onclick="setColor(this, 0xffffff)"></div> <div class="color-btn" style="background-color: #212121;" onclick="setColor(this, 0x212121)"></div> </div>
+        <div class="color-btn selected" style="background-color: #d32f2f;" onclick="setColor(this, 0xd32f2f)"></div>
+        <div class="color-btn" style="background-color: #1976d2;" onclick="setColor(this, 0x1976d2)"></div>
+        <div class="color-btn" style="background-color: #fbc02d;" onclick="setColor(this, 0xfbc02d)"></div>
+        <div class="color-btn" style="background-color: #388e3c;" onclick="setColor(this, 0x388e3c)"></div>
+        <div class="color-btn" style="background-color: #9c27b0;" onclick="setColor(this, 0x9c27b0)"></div> <div class="color-btn" style="background-color: #fff;" onclick="setColor(this, 0xffffff)"></div>
+        <div class="color-btn" style="background-color: #212121;" onclick="setColor(this, 0x212121)"></div>
+    </div>
 
     <script type="module">
         import * as THREE from 'three';
@@ -96,28 +170,25 @@
         let camera, scene, renderer;
         let plane;
         let pointer, raycaster;
-        let isShiftDown = false; // Modo borrar
+        let isShiftDown = false; 
         
         let rollOverMesh, rollOverMaterial;
         let cubeGeo, cubeMaterial;
-        const objects = []; // Aquí guardamos los bloques puestos
+        const objects = []; 
         
-        let currentColor = 0xd32f2f; // Rojo por defecto
+        let currentColor = 0xd32f2f;
 
         init();
         render();
 
         function init() {
-            // 1. Configuración de la escena
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xf0f0f0);
 
-            // 2. Cámara
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
             camera.position.set(500, 800, 1300);
             camera.lookAt(0, 0, 0);
 
-            // 3. Luces (Para que se vea 3D)
             const ambientLight = new THREE.AmbientLight(0x606060, 3);
             scene.add(ambientLight);
 
@@ -125,48 +196,38 @@
             directionalLight.position.set(1, 0.75, 0.5).normalize();
             scene.add(directionalLight);
 
-            // 4. Roll-over (El fantasma que indica dónde vas a poner el bloque)
             const rollOverGeo = new THREE.BoxGeometry(50, 50, 50);
             rollOverMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.5, transparent: true });
             rollOverMesh = new THREE.Mesh(rollOverGeo, rollOverMaterial);
             scene.add(rollOverMesh);
 
-            // 5. Bloques Reales
             cubeGeo = new THREE.BoxGeometry(50, 50, 50);
-            // Usamos LambertMaterial para que reaccione a la luz (sombras suaves)
-            cubeMaterial = new THREE.MeshLambertMaterial({ color: currentColor });
-
-            // 6. Grid (El piso)
+            
             const gridHelper = new THREE.GridHelper(1000, 20);
             scene.add(gridHelper);
 
-            // 7. Plano invisible para detectar clics en el suelo
             const geometry = new THREE.PlaneGeometry(1000, 1000);
             geometry.rotateX(-Math.PI / 2);
             plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
             scene.add(plane);
             objects.push(plane);
 
-            // 8. Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            // 9. Controles (Raycaster y Orbit)
             raycaster = new THREE.Raycaster();
             pointer = new THREE.Vector2();
 
             const controls = new OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true; // Suavizado
+            controls.enableDamping = true;
             controls.dampingFactor = 0.05;
 
-            // Eventos
             document.addEventListener('pointermove', onPointerMove);
-            document.addEventListener('pointerdown', onPointerDown); // Usamos pointerdown para mejor soporte táctil
+            document.addEventListener('pointerdown', onPointerDown);
             window.addEventListener('resize', onWindowResize);
 
-            // Configurar botones UI
             setupUI();
         }
 
@@ -174,11 +235,11 @@
             // Botón Borrar/Construir
             const btnMode = document.getElementById('btn-mode');
             btnMode.addEventListener('click', (e) => {
-                e.stopPropagation(); // Evitar poner bloque al tocar botón
+                e.stopPropagation();
                 isShiftDown = !isShiftDown;
                 if(isShiftDown) {
                     btnMode.classList.add('active');
-                    rollOverMesh.visible = false; // Ocultar guía al borrar
+                    rollOverMesh.visible = false;
                 } else {
                     btnMode.classList.remove('active');
                     rollOverMesh.visible = true;
@@ -188,21 +249,141 @@
             // Botón Limpiar
             document.getElementById('btn-clear').addEventListener('click', (e) => {
                 e.stopPropagation();
-                // Eliminar todo menos el plano (índice 0)
-                for (let i = objects.length - 1; i > 0; i--) {
-                    scene.remove(objects[i]);
-                    objects.pop();
+                if(confirm("¿Estás seguro de que quieres borrar todo el escenario?")) {
+                    clearScene();
                 }
-                render();
+            });
+
+            // Botón Guardar
+            document.getElementById('btn-save').addEventListener('click', (e) => {
+                e.stopPropagation();
+                saveScene();
+            });
+
+            // Botón Cargar
+            document.getElementById('btn-load').addEventListener('click', (e) => {
+                e.stopPropagation();
+                openLoadMenu();
             });
         }
 
-        // Función global para cambiar color desde el HTML
+        // --- FUNCIONES DE GUARDADO Y CARGA ---
+
+        function saveScene() {
+            if (objects.length <= 1) {
+                alert("No hay nada que guardar. ¡Construye algo primero!");
+                return;
+            }
+
+            // Preguntar nombre
+            let saveName = prompt("Nombre de tu construcción:", "Mi Lego 1");
+            if (saveName === null || saveName.trim() === "") return;
+
+            // Extraer datos de los bloques (ignoramos el plano en index 0)
+            const sceneData = [];
+            for (let i = 1; i < objects.length; i++) {
+                const obj = objects[i];
+                sceneData.push({
+                    x: obj.position.x,
+                    y: obj.position.y,
+                    z: obj.position.z,
+                    color: obj.material.color.getHex()
+                });
+            }
+
+            // Obtener base de datos local
+            const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
+            savedGames[saveName] = sceneData;
+            
+            // Guardar
+            localStorage.setItem('legoSaves', JSON.stringify(savedGames));
+            alert(`¡"${saveName}" guardado correctamente!`);
+        }
+
+        window.openLoadMenu = function() {
+            const listDiv = document.getElementById('saved-list');
+            listDiv.innerHTML = ''; // Limpiar lista anterior
+            
+            const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
+            const keys = Object.keys(savedGames);
+
+            if (keys.length === 0) {
+                listDiv.innerHTML = '<p>No hay construcciones guardadas.</p>';
+            } else {
+                keys.forEach(key => {
+                    const row = document.createElement('div');
+                    row.className = 'saved-item';
+                    
+                    // Botón Cargar
+                    const loadBtn = document.createElement('button');
+                    loadBtn.innerText = key;
+                    loadBtn.className = 'load-btn-action';
+                    loadBtn.onclick = () => loadScene(key);
+                    
+                    // Botón Borrar
+                    const delBtn = document.createElement('button');
+                    delBtn.innerText = '🗑️';
+                    delBtn.className = 'delete-btn-action';
+                    delBtn.onclick = () => deleteSave(key);
+
+                    row.appendChild(loadBtn);
+                    row.appendChild(delBtn);
+                    listDiv.appendChild(row);
+                });
+            }
+
+            document.getElementById('overlay-bg').style.display = 'block';
+            document.getElementById('load-modal').style.display = 'block';
+        }
+
+        window.closeModal = function() {
+            document.getElementById('overlay-bg').style.display = 'none';
+            document.getElementById('load-modal').style.display = 'none';
+        }
+
+        window.loadScene = function(key) {
+            const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
+            const data = savedGames[key];
+
+            if (data) {
+                clearScene(); // Borrar actual
+                
+                // Reconstruir
+                data.forEach(blockData => {
+                    const voxel = new THREE.Mesh(cubeGeo, new THREE.MeshLambertMaterial({ color: blockData.color }));
+                    voxel.position.set(blockData.x, blockData.y, blockData.z);
+                    scene.add(voxel);
+                    objects.push(voxel);
+                });
+                
+                closeModal();
+                render();
+            }
+        }
+
+        window.deleteSave = function(key) {
+            if(confirm(`¿Borrar "${key}" para siempre?`)) {
+                const savedGames = JSON.parse(localStorage.getItem('legoSaves') || '{}');
+                delete savedGames[key];
+                localStorage.setItem('legoSaves', JSON.stringify(savedGames));
+                openLoadMenu(); // Refrescar lista
+            }
+        }
+
+        function clearScene() {
+            // Eliminar todo menos el plano (index 0)
+            for (let i = objects.length - 1; i > 0; i--) {
+                scene.remove(objects[i]);
+                objects.pop();
+            }
+            render();
+        }
+
+        // --- FUNCIONES CORE DEL JUEGO ---
+
         window.setColor = function(element, hexColor) {
             currentColor = hexColor;
             rollOverMaterial.color.setHex(hexColor);
-            
-            // Actualizar UI
             document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('selected'));
             element.classList.add('selected');
         }
@@ -216,7 +397,6 @@
 
         function onPointerMove(event) {
             pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
-            
             raycaster.setFromCamera(pointer, camera);
             const intersects = raycaster.intersectObjects(objects, false);
 
@@ -229,8 +409,8 @@
         }
 
         function onPointerDown(event) {
-            // Si el toque fue en la UI, no hacer nada en el canvas 3D
-            if(event.target.closest('#ui-container') || event.target.closest('#tools')) return;
+            // Ignorar clics si son sobre UI
+            if(event.target.closest('.tool-btn') || event.target.closest('#ui-container') || event.target.closest('#load-modal')) return;
 
             pointer.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
             raycaster.setFromCamera(pointer, camera);
@@ -238,16 +418,12 @@
 
             if (intersects.length > 0) {
                 const intersect = intersects[0];
-
-                // MODO BORRAR
                 if (isShiftDown) {
                     if (intersect.object !== plane) {
                         scene.remove(intersect.object);
                         objects.splice(objects.indexOf(intersect.object), 1);
                     }
-                } 
-                // MODO CONSTRUIR
-                else {
+                } else {
                     const voxel = new THREE.Mesh(cubeGeo, new THREE.MeshLambertMaterial({ color: currentColor }));
                     voxel.position.copy(intersect.point).add(intersect.face.normal);
                     voxel.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
@@ -262,10 +438,8 @@
             renderer.render(scene, camera);
         }
         
-        // Loop de animación para controles suaves
         function animate() {
             requestAnimationFrame(animate);
-            // controls.update(); // Llamado por OrbitControls internamente si damping activo
             renderer.render(scene, camera);
         }
         animate();
