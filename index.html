@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lego Builder 5.5 - Final Fixes</title>
+    <title>Lego Builder 5.7 - Sumo Controls</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: 'Segoe UI', sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         
@@ -33,11 +33,12 @@
 
         #player-controls { display: none; position: absolute; bottom: 30px; left: 20px; z-index: 15; touch-action: none; }
         #player-controls.visible { display: grid; grid-template-columns: 60px 60px 60px; grid-template-rows: 60px 60px; gap: 5px; }
+        /* Íconos actualizados para reflejar movimiento Tanque (Giro vs Avance) */
         .dpad-btn { width: 60px; height: 60px; background: rgba(255,255,255,0.5); border: 2px solid #fff; border-radius: 15px; font-size: 30px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
-        #dpad-up { grid-column: 2; grid-row: 1; }
-        #dpad-left { grid-column: 1; grid-row: 2; }
-        #dpad-down { grid-column: 2; grid-row: 2; }
-        #dpad-right { grid-column: 3; grid-row: 2; }
+        #dpad-up { grid-column: 2; grid-row: 1; } /* Avanzar */
+        #dpad-left { grid-column: 1; grid-row: 2; } /* Girar Izq */
+        #dpad-down { grid-column: 2; grid-row: 2; } /* Retroceder */
+        #dpad-right { grid-column: 3; grid-row: 2; } /* Girar Der */
         #btn-jump { display: none; position: absolute; bottom: 40px; right: 30px; width: 80px; height: 80px; background: rgba(255,255,255,0.5); border-radius: 50%; border: 3px solid white; font-weight: bold; z-index: 15; }
     </style>
     
@@ -94,10 +95,8 @@
 
     <div id="player-controls">
         <div class="dpad-btn" id="dpad-up">⬆️</div>
-        <div class="dpad-btn" id="dpad-left">⬅️</div>
-        <div class="dpad-btn" id="dpad-down">⬇️</div>
-        <div class="dpad-btn" id="dpad-right">➡️</div>
-    </div>
+        <div class="dpad-btn" id="dpad-left">⬅️</div> <div class="dpad-btn" id="dpad-down">⬇️</div>
+        <div class="dpad-btn" id="dpad-right">➡️</div> </div>
     <button id="btn-jump">SALTAR</button>
 
     <script type="module">
@@ -111,8 +110,18 @@
             return false;
         };
 
-        // CONFIG
-        const CONF = { gridSize: 2000, cellSize: 50, gravity: 2000, speed: 500, jump: 800 };
+        // CONFIG (Añadido rotSpeed del código Sumo)
+        const CONF = { 
+            gridSize: 2000, 
+            cellSize: 50, 
+            gravity: 2000, 
+            speed: 500, 
+            rotSpeed: 3.0, // Velocidad de giro
+            jump: 800,
+            camDist: 250, // Distancia cámara
+            camHeight: 150 // Altura cámara
+        };
+
         let camera, scene, renderer, controls;
         let plane, gridHelper;
         let raycaster = new THREE.Raycaster();
@@ -136,20 +145,21 @@
         let moveInput = { up: false, down: false, left: false, right: false, jump: false };
         let cooldown = 0;
         
-        // Puertas (Paleta de 10 colores distintos)
         const doorColors = [0x00ff00, 0xff00ff, 0x00ffff, 0xffaa00, 0xff0000, 0x0000ff, 0xffff00, 0xffffff, 0x8800ff, 0x00ff88];
-
-        // --- FUNCIONES LÓGICAS ---
 
         function createPlayer() {
             player = new THREE.Group();
             const body = new THREE.Mesh(new THREE.CapsuleGeometry(20, 50, 4, 8), new THREE.MeshLambertMaterial({ color: 0x00ffff }));
             body.position.y = 45;
             player.add(body);
+            
+            // Ojos en Z positivo (adelante según lógica Sumo)
             const e1 = new THREE.Mesh(new THREE.BoxGeometry(10,5,5), new THREE.MeshBasicMaterial({ color: 0 }));
             const e2 = e1.clone();
-            e1.position.set(-8, 65, 15); e2.position.set(8, 65, 15);
+            e1.position.set(-8, 65, 15); 
+            e2.position.set(8, 65, 15);
             player.add(e1); player.add(e2);
+            
             player.position.set(0, 200, 0);
             player.visible = false;
             scene.add(player);
@@ -193,21 +203,15 @@
                     pid = meta.pid; 
                     pcol = meta.pcol; 
                 } else {
-                    // Logica de Colores Corregida:
-                    // 1. Buscar si hay una puerta sin pareja (huérfana)
                     const orphan = doors.find(d => {
                         const partner = doors.find(p => p !== d && p.userData.pid === d.userData.pid);
                         return !partner;
                     });
-
                     if(orphan) { 
-                        // Si hay huérfana, usamos su ID y su Color
                         pid = orphan.userData.pid; 
                         pcol = orphan.userData.pcol; 
                     } else { 
-                        // Si NO hay huérfana, es una NUEVA pareja
                         pid = Date.now(); 
-                        // Contamos cuántas PIDs únicas existen ya para determinar el índice del color
                         const uniquePids = new Set(doors.map(d => d.userData.pid));
                         const colorIndex = uniquePids.size; 
                         pcol = doorColors[colorIndex % doorColors.length]; 
@@ -234,55 +238,55 @@
             cooldown -= delta;
             const time = clock.getElapsedTime();
 
-            // MOVIMIENTO DE BLOQUES 5.5 (Fórmula Definitiva)
+            // 1. Movimiento Bloques
             movingObjects.forEach(obj => {
                 const oldPos = obj.position.clone();
-                
-                // Fórmula: Empieza en 0, va hasta Rango, vuelve a 0.
-                // (sin + 1) / 2 genera un valor entre 0 y 1.
-                // Multiplicamos por (range * 50) que es la distancia en pixeles.
-                
-                const factor = (Math.sin(time * 2) + 1) / 2; // Valor de 0 a 1
-                const distance = obj.userData.range * 50;    // Distancia total (1 bloque = 50)
-                
+                const factor = (Math.sin(time * 2) + 1) / 2; 
+                const distance = obj.userData.range * 50;    
                 const offset = factor * distance;
-                
                 obj.position.x = obj.userData.origin.x + offset;
                 obj.userData.delta = obj.position.clone().sub(oldPos);
             });
 
             if(!isPlayingMode) return;
 
-            // PUERTAS
+            // 2. Lógica de Puertas
             if(cooldown <= 0) {
                 for(let d of doors) {
                     const distH = Math.sqrt(Math.pow(player.position.x - d.position.x, 2) + Math.pow(player.position.z - d.position.z, 2));
                     const distV = Math.abs(player.position.y - d.position.y);
-
                     if(distH < 50 && distV < 60) {
                         const partner = doors.find(x => x.userData.pid === d.userData.pid && x !== d);
                         if(partner) {
                             player.position.copy(partner.position);
-                            player.position.z += 10; 
-                            cooldown = 2.0;
+                            player.position.z += 10; cooldown = 2.0;
                             break;
                         }
                     }
                 }
             }
 
-            // Físicas
+            // 3. FÍSICAS ESTILO SUMO (Modificadas para el jugador)
             playerVelocity.y -= CONF.gravity * delta;
-            let mx=0, mz=0;
-            if(moveInput.up) mz=-1; if(moveInput.down) mz=1;
-            if(moveInput.left) mx=-1; if(moveInput.right) mx=1;
-            
-            const dir = new THREE.Vector3(mx, 0, mz).normalize();
-            playerVelocity.x = dir.x * CONF.speed;
-            playerVelocity.z = dir.z * CONF.speed;
-            if(dir.lengthSq() > 0.1) player.rotation.y = Math.atan2(dir.x, dir.z);
 
-            // Gravedad
+            // A) Rotación (Input Izq/Der gira al personaje)
+            if(moveInput.left) player.rotation.y += CONF.rotSpeed * delta;
+            if(moveInput.right) player.rotation.y -= CONF.rotSpeed * delta;
+
+            // B) Calcular Vector Adelante basado en rotación actual
+            // En el código de Sumo se usa (0,0,1) rotado.
+            const fwd = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0,1,0), player.rotation.y);
+
+            // C) Velocidad de Avance/Retroceso
+            let currentSpeed = 0;
+            if(moveInput.up) currentSpeed = CONF.speed;
+            if(moveInput.down) currentSpeed = -CONF.speed;
+
+            // Aplicamos la velocidad al vector de movimiento horizontal
+            playerVelocity.x = fwd.x * currentSpeed;
+            playerVelocity.z = fwd.z * currentSpeed;
+
+            // Gravedad y Suelo (Mantenemos la lógica de Lego Builder para colisiones)
             let onGround = false;
             const rayDown = new THREE.Raycaster(new THREE.Vector3(player.position.x, player.position.y + 20, player.position.z), new THREE.Vector3(0,-1,0), 0, 25);
             const hits = rayDown.intersectObjects(objects, false);
@@ -290,7 +294,6 @@
                 player.position.y = hits[0].point.y;
                 playerVelocity.y = 0;
                 onGround = true;
-                
                 let hObj = hits[0].object;
                 while(hObj.parent && hObj.parent !== scene) hObj = hObj.parent;
                 if(hObj.userData.delta) player.position.add(hObj.userData.delta);
@@ -298,23 +301,43 @@
 
             if(moveInput.jump && onGround) { playerVelocity.y = CONF.jump; moveInput.jump = false; }
 
-            // Paredes
-            if(dir.lengthSq() > 0) {
-                const rayFwd = new THREE.Raycaster(new THREE.Vector3(player.position.x, player.position.y+20, player.position.z), dir, 0, 25);
+            // Paredes (Detección Frontal simplificada)
+            if(currentSpeed !== 0) {
+                const moveDir = fwd.clone().normalize();
+                if (currentSpeed < 0) moveDir.negate(); // Si va marcha atrás
+
+                const rayFwd = new THREE.Raycaster(new THREE.Vector3(player.position.x, player.position.y+20, player.position.z), moveDir, 0, 25);
                 const wHits = rayFwd.intersectObjects(objects, false);
                 if(wHits.length > 0) {
                      let hObj = wHits[0].object;
                      while(hObj.parent && hObj.parent !== scene) hObj = hObj.parent;
-                     if(hObj.userData.type !== 'ramp') { playerVelocity.x = 0; playerVelocity.z = 0; }
+                     // Si no es rampa, paramos
+                     if(hObj.userData.type !== 'ramp') { 
+                        playerVelocity.x = 0; 
+                        playerVelocity.z = 0; 
+                     }
                 }
             }
 
+            // Aplicar movimiento
             player.position.addScaledVector(playerVelocity, delta);
+            
+            // Reset caída
             if(player.position.y < -500) { player.position.set(0,200,0); playerVelocity.set(0,0,0); }
             
-            const camTarget = new THREE.Vector3(player.position.x, player.position.y + 200, player.position.z + 300);
-            camera.position.lerp(camTarget, 5 * delta);
-            camera.lookAt(player.position);
+            // 4. CÁMARA (Estilo Sumo: Sigue rígidamente la rotación del jugador)
+            // Calculamos el offset relativo (atrás y arriba)
+            const relativeOffset = new THREE.Vector3(0, CONF.camHeight, -CONF.camDist);
+            // Lo rotamos según a donde mira el jugador
+            relativeOffset.applyAxisAngle(new THREE.Vector3(0,1,0), player.rotation.y);
+            
+            // Destino de la cámara
+            const camDest = player.position.clone().add(relativeOffset);
+            
+            // Interpolamos posición (Lerp) para suavidad, como en el Sumo
+            camera.position.lerp(camDest, 0.1);
+            // Miramos un poco por encima del jugador
+            camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 20, 0)));
         }
 
         // --- INTERACCIÓN ---
@@ -444,13 +467,32 @@
             const bUI = document.getElementById('builder-ui');
             const pUI = document.getElementById('player-controls');
             const jBtn = document.getElementById('btn-jump');
+            
             if(isPlayingMode) {
-                btn.innerText = '🔨'; bUI.style.opacity = 0; bUI.style.pointerEvents = 'none'; pUI.style.display = 'grid'; jBtn.style.display = 'block'; document.getElementById('builder-tools').style.display = 'none';
-                player.visible = true; controls.enabled = false; rollOverMesh.visible = false; rampGuideMesh.visible = false;
+                // MODO JUEGO: DESACTIVAMOS ORBITCONTROLS
+                btn.innerText = '🔨'; 
+                bUI.style.opacity = 0; bUI.style.pointerEvents = 'none'; 
+                pUI.style.display = 'grid'; jBtn.style.display = 'block'; 
+                document.getElementById('builder-tools').style.display = 'none';
+                
+                player.visible = true; 
+                controls.enabled = false; // Importante: Desactivar para que no pelee con nuestra lógica de cámara
+
+                rollOverMesh.visible = false; rampGuideMesh.visible = false;
                 if(player.position.y<0) player.position.set(0,200,0);
             } else {
-                btn.innerText = '🎮'; bUI.style.opacity = 1; bUI.style.pointerEvents = 'auto'; pUI.style.display = 'none'; jBtn.style.display = 'none'; document.getElementById('builder-tools').style.display = 'flex';
-                player.visible = false; controls.enabled = true; if(buildType!=='ramp') rollOverMesh.visible = true;
+                // MODO CONSTRUIR: ACTIVAMOS ORBITCONTROLS
+                btn.innerText = '🎮'; 
+                bUI.style.opacity = 1; bUI.style.pointerEvents = 'auto'; 
+                pUI.style.display = 'none'; jBtn.style.display = 'none'; 
+                document.getElementById('builder-tools').style.display = 'flex';
+                
+                player.visible = false; 
+                
+                controls.enabled = true;
+                controls.target.set(0,0,0); // Resetear centro de órbita
+
+                if(buildType!=='ramp') rollOverMesh.visible = true;
                 camera.position.set(500,600,800); camera.lookAt(0,0,0);
             }
         }
@@ -472,7 +514,15 @@
         }
 
         function onResize() { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
-        function animate() { requestAnimationFrame(animate); const delta = clock.getDelta(); update(delta); if(!isPlayingMode) controls.update(); renderer.render(scene, camera); }
+        
+        function animate() { 
+            requestAnimationFrame(animate); 
+            const delta = clock.getDelta(); 
+            update(delta); 
+            // Solo actualizamos OrbitControls si NO estamos jugando
+            if(!isPlayingMode) controls.update(); 
+            renderer.render(scene, camera); 
+        }
 
         function init() {
             scene = new THREE.Scene(); scene.background = new THREE.Color(0xf0f0f0); scene.fog = new THREE.FogExp2(0xf0f0f0, 0.0002);
